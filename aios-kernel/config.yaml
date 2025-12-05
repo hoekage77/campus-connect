@@ -1,0 +1,24 @@
+# AIOS Kernel Configuration for Lumina
+
+api_keys:
+  gemini: "${GEMINI_API_KEY}"
+  daytona: "${DAYTONA_API_KEY}"
+
+llms:
+  models:
+    - name: "gemini-2.0-flash-exp"
+      backend: "gemini"
+      api_key: "${GEMINI_API_KEY}"
+
+agent_manager:
+  enabled: true
+  agent_hub_url: "http://localhost:8001"  # Optional: For agent distribution
+
+resource_limits:
+  max_concurrent_agents: 10
+  memory_limit_mb: 512
+  timeout_seconds: 600
+
+logging:
+  level: "INFO"
+  format: "json"

@@ -1,0 +1,2047 @@
+openapi: 3.0.3
+info:
+  title: Campus Connect API
+  description: |
+    Campus Connect - Social Learning Platform API
+    
+    Campus Connect is a comprehensive social learning platform for university students featuring:
+    - **Study Groups & Squads** - Collaborative learning communities
+    - **Learning Sessions** - Scheduled study events and activities
+    - **Real-time Chat** - Group messaging and private conversations
+    - **Gamification** - Levels, achievements, and leaderboards
+    - **Lumina AI** - Intelligent visual learning with animated explanations
+    - **Notifications** - Real-time updates for community activity
+    
+    ## Core Features
+    
+    ### Social Learning
+    - Create and join study groups (squads) with shared interests
+    - Organize learning sessions with RSVP tracking
+    - Real-time chat rooms for group communication
+    - User profiles with topics, interests, and activity tracking
+    
+    ### Gamification
+    - User leveling system (Novice → Learner → Collaborator → Expert → Master)
+    - Points earned through engagement (attending events, messaging, creating squads)
+    - Achievements and badges
+    - Campus-wide leaderboard
+    
+    ### Lumina AI (Visual Learning)
+    Transform natural language queries into educational animations using:
+    - **Manim** (3Blue1Brown's animation library)
+    - **Gemini 2.5 Flash** (AI script generation)
+    - **Daytona.io** (Cloud execution environment)
+    - Real-time rendering progress via Server-Sent Events
+    
+    ## Authentication
+    Most endpoints require user authentication via session cookies. Use `/api/auth/login` to authenticate.
+    Admin endpoints require admin role and use `/api/admin/auth/login`.
+    
+  version: 1.0.0
+  contact:
+    name: Campus Connect Support
+    email: support@campusconnect.dev
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+  - url: https://campusconnect.dev/api
+    description: Production
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Users
+    description: User profiles, preferences, and activity
+  - name: Groups
+    description: Study groups (squads) and membership management
+  - name: Sessions
+    description: Learning sessions and RSVP management
+  - name: Chat
+    description: Chat rooms and messaging
+  - name: Messages
+    description: Direct messages between users
+  - name: Notifications
+    description: User notifications and alerts
+  - name: Leaderboard
+    description: Campus-wide gamification leaderboard
+  - name: Interests
+    description: Available topics and interests
+  - name: Lumina AI
+    description: AI-powered visual learning and animation generation
+  - name: SSE
+    description: Server-Sent Events for real-time updates
+  - name: Admin
+    description: Administrative endpoints (admin role required)
+  - name: Local Development
+    description: Development/testing utilities (seed data, clear DB)
+
+paths:
+  # Authentication
+  /auth/signup:
+    post:
+      tags:
+        - Authentication
+      summary: Create new user account
+      description: Register a new user with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - username
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  example: "John Doe"
+                username:
+                  type: string
+                  example: "johndoe"
+                email:
+                  type: string
+                  format: email
+                  example: "john.doe@aun.edu.ng"
+                password:
+                  type: string
+                  format: password
+                  example: "SecurePass123!"
+                studentId:
+                  type: string
+                  example: "STU12345"
+                major:
+                  type: string
+                  example: "Computer Science"
+                year:
+                  type: string
+                  example: "3"
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid input or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and create session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "john.doe@aun.edu.ng"
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: End user session
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+
+  # Users
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user profile
+      description: Retrieve detailed user profile by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "alice-123"
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}/level:
+    get:
+      tags:
+        - Users
+      summary: Get user level data
+      description: Get user's gamification level, points, and achievements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User level data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLevel'
+
+  /users/{id}/level/stats:
+    get:
+      tags:
+        - Users
+      summary: Get user level statistics
+      description: Get detailed breakdown of user's points and activities
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Level statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalPoints:
+                    type: integer
+                    example: 450
+                  breakdown:
+                    type: object
+                    properties:
+                      events:
+                        type: integer
+                        example: 200
+                      messages:
+                        type: integer
+                        example: 150
+                      squads:
+                        type: integer
+                        example: 100
+
+  /users/{id}/activity:
+    post:
+      tags:
+        - Users
+      summary: Log user activity
+      description: Record user activity for gamification (internal use)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - activityType
+              properties:
+                activityType:
+                  type: string
+                  enum:
+                    - event_attended
+                    - message_sent
+                    - squad_created
+                    - login
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Activity logged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pointsEarned:
+                    type: integer
+                  newLevel:
+                    type: string
+                  leveledUp:
+                    type: boolean
+
+  /users/{id}/preferences:
+    get:
+      tags:
+        - Users
+      summary: Get user preferences
+      description: Retrieve user's interests and notification settings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+
+    post:
+      tags:
+        - Users
+      summary: Create user preferences
+      description: Set initial user preferences
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferences'
+      responses:
+        '201':
+          description: Preferences created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+
+    put:
+      tags:
+        - Users
+      summary: Update user preferences
+      description: Update existing user preferences
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferences'
+      responses:
+        '200':
+          description: Preferences updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+
+  /users/{id}/interactions:
+    get:
+      tags:
+        - Users
+      summary: Get user interactions
+      description: Get users the current user has interacted with
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of user interactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  # Groups
+  /groups:
+    get:
+      tags:
+        - Groups
+      summary: List all groups
+      description: Get all public and private groups (filters based on user permissions)
+      parameters:
+        - name: privacy
+          in: query
+          schema:
+            type: string
+            enum:
+              - public
+              - private
+        - name: topics
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of topics
+      responses:
+        '200':
+          description: List of groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+
+    post:
+      tags:
+        - Groups
+      summary: Create new group
+      description: Create a new study group/squad
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+                - privacy
+              properties:
+                title:
+                  type: string
+                  example: "Physics Study Squad"
+                description:
+                  type: string
+                  example: "Collaborative learning for physics majors"
+                privacy:
+                  type: string
+                  enum:
+                    - public
+                    - private
+                  example: "public"
+                topics:
+                  type: array
+                  items:
+                    type: string
+                  example: ["Physics", "Science"]
+                location:
+                  type: string
+                  example: "Library Room 203"
+      responses:
+        '201':
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /groups/{id}:
+    get:
+      tags:
+        - Groups
+      summary: Get group details
+      description: Retrieve detailed group information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Group details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Groups
+      summary: Update group
+      description: Update group details (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                topics:
+                  type: array
+                  items:
+                    type: string
+                location:
+                  type: string
+                privacy:
+                  type: string
+                  enum:
+                    - public
+                    - private
+      responses:
+        '200':
+          description: Group updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '403':
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Groups
+      summary: Delete group
+      description: Delete group (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Group deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Group deleted successfully"
+        '403':
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /groups/{id}/join:
+    post:
+      tags:
+        - Groups
+      summary: Join group
+      description: Join a public or private group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully joined group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          description: Already a member or group is private
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /groups/{id}/members:
+    post:
+      tags:
+        - Groups
+      summary: Add member to group
+      description: Add a user to group (owner/admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
+                role:
+                  type: string
+                  enum:
+                    - member
+                    - moderator
+                  default: member
+      responses:
+        '200':
+          description: Member added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Member added successfully"
+
+    delete:
+      tags:
+        - Groups
+      summary: Remove member from group
+      description: Remove a user from group (owner/admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
+      responses:
+        '200':
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Member removed successfully"
+
+  /groups/{id}/sessions:
+    get:
+      tags:
+        - Groups
+      summary: Get group sessions
+      description: List all sessions for a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+
+    post:
+      tags:
+        - Groups
+      summary: Create group session
+      description: Create a new learning session for the group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - startAt
+                - endAt
+              properties:
+                title:
+                  type: string
+                  example: "Physics Midterm Study Session"
+                description:
+                  type: string
+                  example: "Group study for upcoming midterm"
+                location:
+                  type: string
+                  example: "Library 3rd Floor"
+                startAt:
+                  type: string
+                  format: date-time
+                endAt:
+                  type: string
+                  format: date-time
+                maxAttendees:
+                  type: integer
+                  example: 15
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+  /groups/{id}/chatrooms:
+    post:
+      tags:
+        - Groups
+      summary: Create chat room
+      description: Create a new chat room for the group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: "General Discussion"
+                topic:
+                  type: string
+                  example: "Chat about anything related to physics"
+      responses:
+        '201':
+          description: Chat room created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatRoom'
+
+  # Sessions
+  /sessions:
+    get:
+      tags:
+        - Sessions
+      summary: List all sessions
+      description: Get all public learning sessions with RSVP counts
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+
+    post:
+      tags:
+        - Sessions
+      summary: Create session
+      description: Create a new learning session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - startAt
+                - endAt
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                groupId:
+                  type: string
+                  description: Optional - link session to a group
+                location:
+                  type: string
+                startAt:
+                  type: string
+                  format: date-time
+                endAt:
+                  type: string
+                  format: date-time
+                maxAttendees:
+                  type: integer
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+  /sessions/{id}:
+    get:
+      tags:
+        - Sessions
+      summary: Get session details
+      description: Retrieve detailed session information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+    patch:
+      tags:
+        - Sessions
+      summary: Update session
+      description: Update session details (host only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                location:
+                  type: string
+                startAt:
+                  type: string
+                  format: date-time
+                endAt:
+                  type: string
+                  format: date-time
+                maxAttendees:
+                  type: integer
+      responses:
+        '200':
+          description: Session updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+  /sessions/{id}/rsvps:
+    post:
+      tags:
+        - Sessions
+      summary: RSVP to session
+      description: Register attendance for a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - yes
+                    - no
+                    - maybe
+                  example: "yes"
+      responses:
+        '200':
+          description: RSVP recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "RSVP recorded successfully"
+                  rsvp:
+                    $ref: '#/components/schemas/RSVP'
+
+  # Chat
+  /chat/rooms:
+    get:
+      tags:
+        - Chat
+      summary: Get user's chat rooms
+      description: List all chat rooms the user is a member of
+      responses:
+        '200':
+          description: List of chat rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatRoom'
+
+    post:
+      tags:
+        - Chat
+      summary: Create chat room
+      description: Create a new standalone chat room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                topic:
+                  type: string
+                groupId:
+                  type: string
+                  description: Optional - associate with a group
+                members:
+                  type: array
+                  items:
+                    type: string
+                  description: Initial member user IDs
+      responses:
+        '201':
+          description: Chat room created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatRoom'
+
+  /chat/{roomId}/messages:
+    get:
+      tags:
+        - Chat
+      summary: Get chat messages
+      description: Retrieve messages from a chat room (sorted by most recent)
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            example: 50
+        - name: before
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Get messages before this timestamp (pagination)
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessage'
+
+    post:
+      tags:
+        - Chat
+      summary: Send chat message
+      description: Send a message to a chat room
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  example: "Looking forward to the study session!"
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Messages (Direct Messages)
+  /messages:
+    get:
+      tags:
+        - Messages
+      summary: Get user's messages
+      description: Retrieve direct messages for the current user
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+          description: Filter messages by conversation with specific user
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+
+    post:
+      tags:
+        - Messages
+      summary: Send direct message
+      description: Send a direct message to another user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recipientId
+                - content
+              properties:
+                recipientId:
+                  type: string
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  # Notifications
+  /notifications/{userId}:
+    get:
+      tags:
+        - Notifications
+      summary: Get user notifications
+      description: Retrieve all notifications for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+
+    patch:
+      tags:
+        - Notifications
+      summary: Mark notifications as read
+      description: Mark one or all notifications as read
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notificationId:
+                  type: string
+                  description: Specific notification to mark as read (omit to mark all)
+                markAllAsRead:
+                  type: boolean
+                  description: Mark all notifications as read
+      responses:
+        '200':
+          description: Notifications updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Notifications marked as read"
+
+  # Leaderboard
+  /leaderboard:
+    get:
+      tags:
+        - Leaderboard
+      summary: Get leaderboard
+      description: Retrieve campus-wide leaderboard with top users by points
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            example: 50
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum:
+              - all-time
+              - monthly
+              - weekly
+            default: all-time
+      responses:
+        '200':
+          description: Leaderboard data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    rank:
+                      type: integer
+                      example: 1
+                    user:
+                      $ref: '#/components/schemas/User'
+                    points:
+                      type: integer
+                      example: 1250
+                    level:
+                      type: string
+                      example: "Expert"
+
+  # Interests
+  /interests:
+    get:
+      tags:
+        - Interests
+      summary: Get available interests/topics
+      description: List all available topics and interests for filtering
+      responses:
+        '200':
+          description: List of interests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: ["Computer Science", "Physics", "Mathematics", "Engineering", "Biology"]
+
+  # Lumina AI
+  /lumina/render:
+    post:
+      tags:
+        - Lumina AI
+      summary: Render Manim animation (standard)
+      description: |
+        Generate a Manim animation from a natural language query.
+        
+        **Process:**
+        1. Generates Python script via Gemini 2.5 Flash (or uses template)
+        2. Validates script for security
+        3. Executes Manim render command
+        4. Returns video URL via Server-Sent Events
+        
+        **Rendering Strategies:**
+        - **Tier 1 (Template)**: 2-5s - Uses pre-built templates
+        - **Tier 3 (Generated)**: 7-9s - AI generates custom script
+        
+        **Note:** Requires local Manim installation. Use `/lumina/render-daytona` for cloud execution.
+        
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: Natural language question or topic
+                  example: "Explain Newton's second law with an animation"
+                preset:
+                  type: string
+                  description: Optional preset template key
+                  enum:
+                    - projectileMotion
+                    - newtonSecondLaw
+                    - electricField
+                    - quadraticFunction
+                    - derivativeVisualization
+                  example: "projectileMotion"
+                parameters:
+                  type: object
+                  description: Optional parameters for templates
+                  properties:
+                    velocity:
+                      type: number
+                    angle:
+                      type: number
+                    mass:
+                      type: number
+                    force:
+                      type: number
+                quality:
+                  type: string
+                  enum:
+                    - low
+                    - medium
+                    - high
+                  default: low
+      responses:
+        '200':
+          description: Server-Sent Events stream with render progress
+          content:
+            text/event-stream:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [progress]
+                      stage:
+                        type: string
+                      progress:
+                        type: integer
+                      message:
+                        type: string
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [complete]
+                      videoUrl:
+                        type: string
+                      duration:
+                        type: number
+                      scriptId:
+                        type: string
+                  - type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [error]
+                      message:
+                        type: string
+                      code:
+                        type: string
+
+  /lumina/render-daytona:
+    post:
+      tags:
+        - Lumina AI
+      summary: Render Manim animation (Daytona-optimized)
+      description: |
+        Generate a Manim animation in a Daytona.io cloud environment.
+        
+        **Advantages:**
+        - ✅ No local Manim installation needed
+        - ✅ Consistent Linux environment
+        - ✅ Pre-configured dependencies
+        - ✅ Faster execution (~5-7s)
+        
+        Same request/response format as `/lumina/render`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                preset:
+                  type: string
+                parameters:
+                  type: object
+                quality:
+                  type: string
+      responses:
+        '200':
+          description: Server-Sent Events stream with render progress
+          content:
+            text/event-stream:
+              schema:
+                type: object
+
+  # SSE
+  /sse/subscribe:
+    get:
+      tags:
+        - SSE
+      summary: Subscribe to real-time events
+      description: |
+        Server-Sent Events endpoint for real-time updates
+        
+        **Event types:**
+        - `notification` - New notification
+        - `message` - New chat message
+        - `session_update` - Session changes
+        - `group_update` - Group changes
+        - `level_up` - User leveled up
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE connection established
+          content:
+            text/event-stream:
+              schema:
+                type: object
+                properties:
+                  event:
+                    type: string
+                  data:
+                    type: object
+
+  # Admin endpoints
+  /admin/auth/login:
+    post:
+      tags:
+        - Admin
+      summary: Admin login
+      description: Authenticate admin user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  example: "admin@campusconnect.dev"
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Admin login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  role:
+                    type: string
+                    example: "admin"
+
+  /admin/bootstrap:
+    post:
+      tags:
+        - Admin
+      summary: Bootstrap admin account
+      description: Create initial admin account (first-time setup only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Admin account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /admin/users:
+    post:
+      tags:
+        - Admin
+      summary: Create user (admin)
+      description: Create a new user account (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+                - username
+              properties:
+                email:
+                  type: string
+                name:
+                  type: string
+                username:
+                  type: string
+                role:
+                  type: string
+                  enum:
+                    - user
+                    - admin
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /admin/users/{id}/role:
+    patch:
+      tags:
+        - Admin
+      summary: Update user role
+      description: Change user's role (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+              properties:
+                role:
+                  type: string
+                  enum:
+                    - user
+                    - admin
+      responses:
+        '200':
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /admin/collections/{name}:
+    get:
+      tags:
+        - Admin
+      summary: Get collection data
+      description: Retrieve all documents from a data collection (admin only)
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - users
+              - groups
+              - sessions
+              - messages
+              - notifications
+      responses:
+        '200':
+          description: Collection data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  # Local Development
+  /local/seed:
+    post:
+      tags:
+        - Local Development
+      summary: Seed demo data
+      description: Populate database with demo users, groups, sessions (dev only)
+      responses:
+        '200':
+          description: Demo data seeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Demo data seeded successfully"
+
+  /local/clear:
+    post:
+      tags:
+        - Local Development
+      summary: Clear all data
+      description: Delete all data from the database (dev only - use with caution)
+      responses:
+        '200':
+          description: Data cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "All data cleared"
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "alice-123"
+        name:
+          type: string
+          example: "Alice Johnson"
+        username:
+          type: string
+          example: "alicejohnson"
+        email:
+          type: string
+          format: email
+          example: "alice.johnson@aun.edu.ng"
+        role:
+          type: string
+          enum:
+            - user
+            - admin
+          example: "user"
+        avatar:
+          type: string
+          format: uri
+          example: "https://api.dicebear.com/7.x/avataaars/svg?seed=alice"
+        bio:
+          type: string
+          example: "Physics major, love studying quantum mechanics"
+        major:
+          type: string
+          example: "Physics"
+        year:
+          type: string
+          example: "3"
+        studentId:
+          type: string
+          example: "STU12345"
+        topics:
+          type: array
+          items:
+            type: string
+          example: ["Physics", "Mathematics", "Quantum Computing"]
+        createdAt:
+          type: string
+          format: date-time
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "physics-squad-123"
+        title:
+          type: string
+          example: "Physics Study Squad"
+        description:
+          type: string
+          example: "Weekly physics problem-solving sessions"
+        ownerId:
+          type: string
+          example: "alice-123"
+        privacy:
+          type: string
+          enum:
+            - public
+            - private
+          example: "public"
+        topics:
+          type: array
+          items:
+            type: string
+          example: ["Physics", "Science"]
+        location:
+          type: string
+          example: "Library Room 203"
+        memberCount:
+          type: integer
+          example: 12
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: string
+              role:
+                type: string
+                enum:
+                  - owner
+                  - moderator
+                  - member
+        createdAt:
+          type: string
+          format: date-time
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "session-123"
+        title:
+          type: string
+          example: "Quantum Mechanics Study Session"
+        description:
+          type: string
+          example: "Covering chapters 5-7 for midterm prep"
+        hostId:
+          type: string
+          example: "alice-123"
+        groupId:
+          type: string
+          example: "physics-squad-123"
+        location:
+          type: string
+          example: "Library 3rd Floor"
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        maxAttendees:
+          type: integer
+          example: 15
+        attendeeCount:
+          type: integer
+          example: 8
+        maybeCount:
+          type: integer
+          example: 3
+        status:
+          type: string
+          enum:
+            - upcoming
+            - in-progress
+            - completed
+            - cancelled
+          example: "upcoming"
+        createdAt:
+          type: string
+          format: date-time
+
+    RSVP:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "rsvp-123"
+        sessionId:
+          type: string
+          example: "session-123"
+        userId:
+          type: string
+          example: "bob-456"
+        status:
+          type: string
+          enum:
+            - yes
+            - no
+            - maybe
+          example: "yes"
+        createdAt:
+          type: string
+          format: date-time
+
+    ChatRoom:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "room-123"
+        groupId:
+          type: string
+          example: "physics-squad-123"
+        name:
+          type: string
+          example: "General Discussion"
+        topic:
+          type: string
+          example: "Chat about physics topics"
+        members:
+          type: array
+          items:
+            type: string
+          example: ["alice-123", "bob-456"]
+        messageCount:
+          type: integer
+          example: 247
+        createdAt:
+          type: string
+          format: date-time
+        lastMessageDate:
+          type: string
+          format: date-time
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "msg-123"
+        chatRoomId:
+          type: string
+          example: "room-123"
+        senderId:
+          type: string
+          example: "alice-123"
+        senderName:
+          type: string
+          example: "Alice Johnson"
+        senderLevel:
+          type: string
+          enum:
+            - Novice
+            - Learner
+            - Collaborator
+            - Expert
+            - Master
+          example: "Learner"
+        content:
+          type: string
+          example: "Looking forward to tomorrow's session!"
+        reactions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            "👍": ["bob-456", "charlie-789"]
+            "❤️": ["alice-123"]
+        createdAt:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "dm-123"
+        senderId:
+          type: string
+          example: "alice-123"
+        recipientId:
+          type: string
+          example: "bob-456"
+        content:
+          type: string
+          example: "Hey, are you coming to the study session?"
+        read:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "notif-123"
+        userId:
+          type: string
+          example: "bob-456"
+        type:
+          type: string
+          enum:
+            - message
+            - session_created
+            - rsvp
+            - group_joined
+            - group_left
+            - level_up
+            - achievement
+            - invite
+            - reminder
+            - mention
+          example: "message"
+        title:
+          type: string
+          example: "New Message"
+        message:
+          type: string
+          example: "Alice sent you a message"
+        read:
+          type: boolean
+          example: false
+        actionUrl:
+          type: string
+          format: uri
+          example: "/messages?userId=alice-123"
+        relatedId:
+          type: string
+          example: "dm-123"
+        createdAt:
+          type: string
+          format: date-time
+
+    UserLevel:
+      type: object
+      properties:
+        userId:
+          type: string
+          example: "alice-123"
+        currentLevel:
+          type: string
+          enum:
+            - Novice
+            - Learner
+            - Collaborator
+            - Expert
+            - Master
+          example: "Learner"
+        totalPoints:
+          type: integer
+          example: 450
+        totalEventsAttended:
+          type: integer
+          example: 8
+        totalSquadsCreated:
+          type: integer
+          example: 2
+        totalMessagesCount:
+          type: integer
+          example: 134
+        loginStreak:
+          type: integer
+          example: 7
+        achievements:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+              unlockedAt:
+                type: string
+                format: date-time
+
+    UserPreferences:
+      type: object
+      properties:
+        userId:
+          type: string
+          example: "alice-123"
+        interests:
+          type: array
+          items:
+            type: string
+          example: ["Physics", "Mathematics", "Quantum Computing"]
+        preferredEventTypes:
+          type: array
+          items:
+            type: string
+          example: ["Study Sessions", "Workshops"]
+        preferredSquadTopics:
+          type: array
+          items:
+            type: string
+          example: ["Physics", "Science"]
+        notificationFrequency:
+          type: string
+          enum:
+            - instant
+            - daily
+            - weekly
+            - none
+          default: instant
+          example: "instant"
+        discoveryEnabled:
+          type: boolean
+          example: true
+        lastUpdated:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Validation error"
+        message:
+          type: string
+          example: "Missing required field: title"
+        code:
+          type: string
+          example: "VALIDATION_ERROR"
+
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Session-based authentication using HTTP-only cookies
+
+security:
+  - sessionCookie: []
